@@ -82,3 +82,44 @@ func TestInvalidPathsReturnsError(t *testing.T) {
 		t.Error("Expected an error on file open, and didn't get one")
 	}
 }
+
+func TestLoadsHWVersion(t *testing.T) {
+	tData := []struct {
+		path      string
+		HWVersion string
+	}{
+		{
+			"pattern_1.splice",
+			"0.808-alpha",
+		},
+		{
+			"pattern_2.splice",
+			"0.808-alpha",
+		},
+		{
+			"pattern_3.splice",
+			"0.808-alpha",
+		},
+		{
+			"pattern_4.splice",
+			"0.909",
+		},
+		{
+			"pattern_5.splice",
+			"0.708-alpha",
+		},
+	}
+
+	for _, tCase := range tData {
+		decoded, err := DecodeFile(path.Join("..", "data", "fixtures", tCase.path))
+		if err != nil {
+			t.Fatalf("something went wrong decoding %s - %v", tCase.path, err)
+		}
+		if decoded.HWVersion != tCase.HWVersion {
+			t.Logf("decoded:\n%#v\n", decoded.HWVersion)
+			t.Logf("expected:\n%#v\n", tCase.HWVersion)
+			t.Fatalf("%s wasn't decoded as expect.\nGot:\n%s\nExpected:\n%s",
+				tCase.path, decoded.HWVersion, tCase.HWVersion)
+		}
+	}
+}
