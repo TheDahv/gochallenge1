@@ -63,7 +63,7 @@ Tempo: 999
 	}
 
 	for _, exp := range tData {
-		decoded, err := DecodeFile(path.Join("..", "fixtures", exp.path))
+		decoded, err := DecodeFile(path.Join("..", "data", "fixtures", exp.path))
 		if err != nil {
 			t.Fatalf("something went wrong decoding %s - %v", exp.path, err)
 		}
@@ -162,5 +162,73 @@ func TestLoadsBPM(t *testing.T) {
 			t.Fatalf("%s wasn't decoded as expect.\nGot:\n%f\nExpected:\n%f",
 				tCase.path, decoded.BPM, tCase.BPM)
 		}
+	}
+}
+
+// There's probably a better way to enter a byte array literal
+// This is the Kick pattern from Sample 3
+// (40) kick	|x---|----|x---|----|
+var trackData = []byte{0x28, 0x00, 0x00, 0x00, 0x04, 0x6B, 0x69, 0x63, 0x6B, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}
+
+func TestLoadsSingleTrack(t *testing.T) {
+	tracks := readTracks(trackData)
+	if numTracks := len(tracks); numTracks != 1 {
+		t.Errorf("Expected to get 1 track back, got %d\n", numTracks)
+	}
+
+	track := tracks[0]
+	if track.SampleID != 40 {
+		t.Errorf("Expected the sample ID to be 40, got %d\n", track.SampleID)
+	}
+
+	if track.SampleName != "kick" {
+		t.Errorf("Expected the sample name to be 'kick', got '%s'\n", track.SampleName)
+	}
+}
+
+func TestMultipleTracks(t *testing.T) {
+	newTrackData := []byte{0x01, 0x00, 0x00, 0x00, 0x04, 0x63, 0x6C, 0x61, 0x70, 0x00, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00}
+	// Clap pattern from Sample 3
+	// (1) clap	|----|x---|----|x---|
+	multipleTracks := []byte{}
+	multipleTracks = append(multipleTracks, trackData...)
+	multipleTracks = append(multipleTracks, newTrackData...)
+
+	tracks := readTracks(multipleTracks)
+	if numTracks := len(tracks); numTracks != 2 {
+		t.Errorf("Expected to get 2 tracks back, got %d\n", numTracks)
+	}
+
+	track1 := tracks[0]
+	track2 := tracks[1]
+
+	if track1.SampleID != 40 {
+		t.Errorf("Expected the sample ID to be 40, got %d\n", track1.SampleID)
+	}
+	if track1.SampleName != "kick" {
+		t.Errorf("Expected the sample name to be 'kick', got '%s'\n", track1.SampleName)
+	}
+
+	if track2.SampleID != 1 {
+		t.Errorf("Expected the sample ID to be 1, got %d\n", track2.SampleID)
+	}
+	if track2.SampleName != "clap" {
+		t.Errorf("Expected the sample name to be 'clap', got '%s'\n", track2.SampleName)
+	}
+}
+
+func TestReadTrack(t *testing.T) {
+	trackData := []byte{0x28, 0x00, 0x00, 0x00, 0x04, 0x6B, 0x69, 0x63, 0x6B, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}
+	track, trackSize := readTrack(trackData)
+	if trackSize != len(trackData) {
+		t.Errorf("Expected the track bytes read to be %d, got %d\n", len(trackData), trackSize)
+	}
+
+	if track.SampleID != 40 {
+		t.Errorf("Expected the sample ID to be 40, got %d\n", track.SampleID)
+	}
+
+	if track.SampleName != "kick" {
+		t.Errorf("Expected the sample name to be 'kick', got '%s'\n", track.SampleName)
 	}
 }
