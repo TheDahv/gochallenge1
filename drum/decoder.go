@@ -1,11 +1,21 @@
 package drum
 
+import (
+	"os"
+)
+
 // DecodeFile decodes the drum machine file found at the provided path
 // and returns a pointer to a parsed pattern which is the entry point to the
 // rest of the data.
-// TODO: implement
-func DecodeFile(path string) (*Pattern, error) {
-	p := &Pattern{}
+func DecodeFile(path string) (p *Pattern, err error) {
+	p = &Pattern{}
+
+	file, err := os.Open(path)
+	if err != nil {
+		return
+	}
+
+
 	return p, nil
 }
 

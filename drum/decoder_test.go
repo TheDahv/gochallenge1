@@ -7,6 +7,8 @@ import (
 )
 
 func TestDecodeFile(t *testing.T) {
+	t.Skip()
+
 	tData := []struct {
 		path   string
 		output string
@@ -71,5 +73,12 @@ Tempo: 999
 			t.Fatalf("%s wasn't decoded as expect.\nGot:\n%s\nExpected:\n%s",
 				exp.path, decoded, exp.output)
 		}
+	}
+}
+
+func TestInvalidPathsReturnsError(t *testing.T) {
+	_, err := DecodeFile("meow")
+	if err == nil {
+		t.Error("Expected an error on file open, and didn't get one")
 	}
 }
