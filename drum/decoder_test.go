@@ -123,3 +123,44 @@ func TestLoadsHWVersion(t *testing.T) {
 		}
 	}
 }
+
+func TestLoadsBPM(t *testing.T) {
+	tData := []struct {
+		path string
+		BPM  float32
+	}{
+		{
+			"pattern_1.splice",
+			120,
+		},
+		{
+			"pattern_2.splice",
+			98.4,
+		},
+		{
+			"pattern_3.splice",
+			118,
+		},
+		{
+			"pattern_4.splice",
+			240,
+		},
+		{
+			"pattern_5.splice",
+			999,
+		},
+	}
+
+	for _, tCase := range tData {
+		decoded, err := DecodeFile(path.Join("..", "data", "fixtures", tCase.path))
+		if err != nil {
+			t.Fatalf("something went wrong decoding %s - %v", tCase.path, err)
+		}
+		if decoded.BPM != tCase.BPM {
+			t.Logf("decoded:\n%#v\n", decoded.BPM)
+			t.Logf("expected:\n%#v\n", tCase.BPM)
+			t.Fatalf("%s wasn't decoded as expect.\nGot:\n%f\nExpected:\n%f",
+				tCase.path, decoded.BPM, tCase.BPM)
+		}
+	}
+}

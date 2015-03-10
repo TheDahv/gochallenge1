@@ -2,6 +2,8 @@ package drum
 
 import (
 	"bufio"
+	"encoding/binary"
+	"math"
 	"os"
 )
 
@@ -56,6 +58,7 @@ func DecodeFile(path string) (p *Pattern, err error) {
 	}
 
 	p.HWVersion = readHwVersion(bytes)
+	p.BPM = readBPM(bytes)
 
 	return p, nil
 }
@@ -70,4 +73,11 @@ func readHwVersion(data []byte) string {
 	}
 
 	return string(hwVersion)
+}
+
+// readBPM extracts the BPM bytes and converts them to a float32 integer
+func readBPM(data []byte) float32 {
+	bpm := data[46:50]
+	bits := binary.LittleEndian.Uint32(bpm)
+	return math.Float32frombits(bits)
 }
