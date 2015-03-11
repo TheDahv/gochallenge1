@@ -94,8 +94,8 @@ func DecodeFile(path string) (*Pattern, error) {
 		return p, err
 	}
 
-	p.HWVersion = readHwVersion(b)
-	p.BPM = readBPM(b)
+	p.HWVersion = readHwVersion(b[14:46])
+	p.BPM = readBPM(b[46:50])
 	p.Tracks = readTracks(b[tOffset:])
 
 	return p, nil
@@ -103,13 +103,12 @@ func DecodeFile(path string) (*Pattern, error) {
 
 // readHwVersion extracts the HWVersion from the input data.
 //
-// TODO: isolate from the preceding pattern data
 // TODO: handle errors for string conversion
 func readHwVersion(data []byte) string {
 	var str []byte
-	for i := 14; i < 46; i++ {
-		if data[i] != 0x00 {
-			str = append(str, data[i])
+	for _, b := range data {
+		if b != 0x00 {
+			str = append(str, b)
 		}
 	}
 
@@ -118,11 +117,9 @@ func readHwVersion(data []byte) string {
 
 // readBPM extracts the BPM bytes and converts them to a float32 integer.
 //
-// TODO: isolate from the preceding pattern data
 // TODO: handle errors for number conversion
 func readBPM(data []byte) float32 {
-	bpm := data[46:50]
-	bits := binary.LittleEndian.Uint32(bpm)
+	bits := binary.LittleEndian.Uint32(data)
 	return math.Float32frombits(bits)
 }
 

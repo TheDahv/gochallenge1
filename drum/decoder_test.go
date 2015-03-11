@@ -1,7 +1,9 @@
 package drum
 
 import (
+	"bufio"
 	"fmt"
+	"os"
 	"path"
 	"testing"
 )
@@ -81,6 +83,19 @@ func TestInvalidPathsReturnsError(t *testing.T) {
 	}
 }
 
+func loadBytesFromFile(fn string) ([]byte, error) {
+	f, err := os.Open(path.Join("..", "data", "fixtures", fn))
+
+	if err != nil {
+		return nil, err
+	}
+
+	scn := bufio.NewScanner(f)
+	scn.Scan()
+
+	return scn.Bytes(), nil
+}
+
 func TestLoadsHWVersion(t *testing.T) {
 	tData := []struct {
 		path      string
@@ -109,15 +124,18 @@ func TestLoadsHWVersion(t *testing.T) {
 	}
 
 	for _, tCase := range tData {
-		decoded, err := DecodeFile(path.Join("..", "data", "fixtures", tCase.path))
+		b, err := loadBytesFromFile(tCase.path)
 		if err != nil {
-			t.Fatalf("something went wrong decoding %s - %v", tCase.path, err)
+			t.Errorf("Failure to open file %s\n", tCase.path)
+			t.FailNow()
 		}
-		if decoded.HWVersion != tCase.HWVersion {
-			t.Logf("decoded:\n%#v\n", decoded.HWVersion)
+
+		result := readHwVersion(b[14:46])
+		if result != tCase.HWVersion {
+			t.Logf("decoded:\n%#v\n", result)
 			t.Logf("expected:\n%#v\n", tCase.HWVersion)
 			t.Fatalf("%s wasn't decoded as expected.\nGot:\n%s\nExpected:\n%s",
-				tCase.path, decoded.HWVersion, tCase.HWVersion)
+				tCase.path, result, tCase.HWVersion)
 		}
 	}
 }
@@ -150,15 +168,18 @@ func TestLoadsBPM(t *testing.T) {
 	}
 
 	for _, tCase := range tData {
-		decoded, err := DecodeFile(path.Join("..", "data", "fixtures", tCase.path))
+		b, err := loadBytesFromFile(tCase.path)
 		if err != nil {
-			t.Fatalf("something went wrong decoding %s - %v", tCase.path, err)
+			t.Errorf("Failure to open file %s\n", tCase.path)
+			t.FailNow()
 		}
-		if decoded.BPM != tCase.BPM {
-			t.Logf("decoded:\n%#v\n", decoded.BPM)
+
+		result := readBPM(b[46:50])
+		if result != tCase.BPM {
+			t.Logf("decoded:\n%#v\n", result)
 			t.Logf("expected:\n%#v\n", tCase.BPM)
 			t.Fatalf("%s wasn't decoded as expected.\nGot:\n%f\nExpected:\n%f",
-				tCase.path, decoded.BPM, tCase.BPM)
+				tCase.path, result, tCase.BPM)
 		}
 	}
 }
@@ -186,8 +207,6 @@ func TestLoadsSingleTrack(t *testing.T) {
 
 func TestMultipleTracks(t *testing.T) {
 	newTrackData := []byte{0x01, 0x00, 0x00, 0x00, 0x04, 0x63, 0x6C, 0x61, 0x70, 0x00, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00}
-	// Clap pattern from Sample 3
-	// (1) clap	|----|x---|----|x---|
 	multipleTracks := []byte{}
 	multipleTracks = append(multipleTracks, trackData...)
 	multipleTracks = append(multipleTracks, newTrackData...)
