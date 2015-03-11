@@ -2,7 +2,9 @@ package drum
 
 import (
 	"bufio"
+	"bytes"
 	"encoding/binary"
+	"fmt"
 	"math"
 	"os"
 )
@@ -45,6 +47,36 @@ type Track struct {
 	SampleID   int
 	SampleName string
 	Pattern    []byte
+}
+
+// String Given a Track, arrange its data into a string representing
+// the track information and beat pattern
+//
+// TODO: handle errors in missing data
+func (t Track) String() string {
+	prelude := fmt.Sprintf("(%d) %s\t", t.SampleID, t.SampleName)
+
+	bytesToSteps := func(beat []byte) string {
+		var buffer bytes.Buffer
+		for _, byte := range beat {
+			if byte == 0x00 {
+				buffer.WriteString("-")
+			} else {
+				buffer.WriteString("x")
+			}
+		}
+
+		return buffer.String()
+	}
+
+	track := fmt.Sprintf("|%s|%s|%s|%s|",
+		bytesToSteps(t.Pattern[0:4]),
+		bytesToSteps(t.Pattern[4:8]),
+		bytesToSteps(t.Pattern[8:12]),
+		bytesToSteps(t.Pattern[12:16]),
+	)
+
+	return prelude + track
 }
 
 // DecodeFile decodes the drum machine file found at the provided path

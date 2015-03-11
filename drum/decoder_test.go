@@ -232,3 +232,12 @@ func TestReadTrack(t *testing.T) {
 		t.Errorf("Expected the sample name to be 'kick', got '%s'\n", track.SampleName)
 	}
 }
+
+func TestString(t *testing.T) {
+	exp := "(40) kick	|x---|----|x---|----|"
+	track, _ := readTrack(trackData)
+
+	if result := track.String(); exp != result {
+		t.Errorf("Expected to see %s, but got %s\n", exp, result)
+	}
+}
