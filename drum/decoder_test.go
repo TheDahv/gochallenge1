@@ -7,8 +7,6 @@ import (
 )
 
 func TestDecodeFile(t *testing.T) {
-	t.Skip()
-
 	tData := []struct {
 		path   string
 		output string
@@ -70,7 +68,7 @@ Tempo: 999
 		if fmt.Sprint(decoded) != exp.output {
 			t.Logf("decoded:\n%#v\n", fmt.Sprint(decoded))
 			t.Logf("expected:\n%#v\n", exp.output)
-			t.Fatalf("%s wasn't decoded as expect.\nGot:\n%s\nExpected:\n%s",
+			t.Fatalf("%s wasn't decoded as expected.\nGot:\n%s\nExpected:\n%s",
 				exp.path, decoded, exp.output)
 		}
 	}
@@ -118,7 +116,7 @@ func TestLoadsHWVersion(t *testing.T) {
 		if decoded.HWVersion != tCase.HWVersion {
 			t.Logf("decoded:\n%#v\n", decoded.HWVersion)
 			t.Logf("expected:\n%#v\n", tCase.HWVersion)
-			t.Fatalf("%s wasn't decoded as expect.\nGot:\n%s\nExpected:\n%s",
+			t.Fatalf("%s wasn't decoded as expected.\nGot:\n%s\nExpected:\n%s",
 				tCase.path, decoded.HWVersion, tCase.HWVersion)
 		}
 	}
@@ -159,7 +157,7 @@ func TestLoadsBPM(t *testing.T) {
 		if decoded.BPM != tCase.BPM {
 			t.Logf("decoded:\n%#v\n", decoded.BPM)
 			t.Logf("expected:\n%#v\n", tCase.BPM)
-			t.Fatalf("%s wasn't decoded as expect.\nGot:\n%f\nExpected:\n%f",
+			t.Fatalf("%s wasn't decoded as expected.\nGot:\n%f\nExpected:\n%f",
 				tCase.path, decoded.BPM, tCase.BPM)
 		}
 	}
@@ -178,11 +176,11 @@ func TestLoadsSingleTrack(t *testing.T) {
 
 	track := tracks[0]
 	if track.SampleID != 40 {
-		t.Errorf("Expected the sample ID to be 40, got %d\n", track.SampleID)
+		t.Errorf("Got SampleID of %d, expected 40\n", track.SampleID)
 	}
 
 	if track.SampleName != "kick" {
-		t.Errorf("Expected the sample name to be 'kick', got '%s'\n", track.SampleName)
+		t.Errorf("Got sample name '%s', expected 'kick'\n", track.SampleName)
 	}
 }
 
@@ -196,24 +194,24 @@ func TestMultipleTracks(t *testing.T) {
 
 	tracks := readTracks(multipleTracks)
 	if numTracks := len(tracks); numTracks != 2 {
-		t.Errorf("Expected to get 2 tracks back, got %d\n", numTracks)
+		t.Errorf("Got %d tracks back, expected 2\n", numTracks)
 	}
 
 	track1 := tracks[0]
 	track2 := tracks[1]
 
 	if track1.SampleID != 40 {
-		t.Errorf("Expected the sample ID to be 40, got %d\n", track1.SampleID)
+		t.Errorf("Got SampleID %d, expected 40\n", track1.SampleID)
 	}
 	if track1.SampleName != "kick" {
-		t.Errorf("Expected the sample name to be 'kick', got '%s'\n", track1.SampleName)
+		t.Errorf("Got SampleName '%s', expected 'kick'\n", track1.SampleName)
 	}
 
 	if track2.SampleID != 1 {
-		t.Errorf("Expected the sample ID to be 1, got %d\n", track2.SampleID)
+		t.Errorf("Got SampleID %d, expected 1\n", track2.SampleID)
 	}
 	if track2.SampleName != "clap" {
-		t.Errorf("Expected the sample name to be 'clap', got '%s'\n", track2.SampleName)
+		t.Errorf("Got SampleName '%s', expected 'clap'\n", track2.SampleName)
 	}
 }
 
@@ -221,15 +219,15 @@ func TestReadTrack(t *testing.T) {
 	trackData := []byte{0x28, 0x00, 0x00, 0x00, 0x04, 0x6B, 0x69, 0x63, 0x6B, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}
 	track, trackSize := readTrack(trackData)
 	if trackSize != len(trackData) {
-		t.Errorf("Expected the track bytes read to be %d, got %d\n", len(trackData), trackSize)
+		t.Errorf("Got track %d bytes read, expected %d\n", trackSize, len(trackData))
 	}
 
 	if track.SampleID != 40 {
-		t.Errorf("Expected the sample ID to be 40, got %d\n", track.SampleID)
+		t.Errorf("Got SampleID %d, expected %d\n", track.SampleID, 40)
 	}
 
 	if track.SampleName != "kick" {
-		t.Errorf("Expected the sample name to be 'kick', got '%s'\n", track.SampleName)
+		t.Errorf("Got SampleName '%s', expected 'kick'\n", track.SampleName)
 	}
 }
 
@@ -237,7 +235,7 @@ func TestString(t *testing.T) {
 	exp := "(40) kick	|x---|----|x---|----|"
 	track, _ := readTrack(trackData)
 
-	if result := track.String(); exp != result {
-		t.Errorf("Expected to see %s, but got %s\n", exp, result)
+	if result := track.String(); result != exp {
+		t.Errorf("Got tracks tring '%s', expected '%s'\n", result, exp)
 	}
 }

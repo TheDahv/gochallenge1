@@ -10,63 +10,58 @@ import (
 )
 
 const (
-	// The number of empty bytes after the track sample ID
-	trackPaddingLength int = 3
-	// The number of bytes used to store the track pattern
-	patternLength int = 16
-	// The number of bytes into a pattern to start looking for
-	// track data
-	tracksOffset int = 50
+	tOffset  int = 50 // Bytes offset where track data starts.
+	tPadding int = 3  // Number of empty bytes after the track sample ID.
+	pLen     int = 16 // Number of bytes used to store the track pattern.
 )
 
-// Pattern description
-//    offset - length  - value
-//     0        6      - "SPLICE"
-//     7        5      - padding
-//    13        1      - ???
-//    14       32      - HW Name
-//    46        4      - BPM (Little Endian Int32)
-// -- loop --
-//    0         1      - pattern (Hex -> Int)
-//    1         3      - padding
-//    4         1      - name length
-//    5         n      - pattern name
-//    5 + n + 1    16      - pattern (01 for note, 00 for none)
-
-// Pattern is the high level representation of the
-// drum pattern contained in a .splice file.
+// Pattern is the high level representation of the drum pattern contained
+// in a .splice file.
 type Pattern struct {
 	HWVersion string
 	BPM       float32
 	Tracks    []Track
 }
 
-// Track is each line representing the sample and which
-// beats the sample should be played on
+// String returns multiple lines describing the pattern's
+// metadata and the beat pattern for each of its tracks.
+func (p Pattern) String() string {
+	buffer := bytes.NewBufferString("")
+
+	fmt.Fprint(buffer, fmt.Sprintf("Saved with HW Version: %s\n", p.HWVersion))
+	fmt.Fprint(buffer, fmt.Sprintf("Tempo: %v\n", p.BPM))
+	for _, track := range p.Tracks {
+		fmt.Fprint(buffer, fmt.Sprintf("%v\n", track))
+	}
+
+	return buffer.String()
+}
+
+// Track is a line representing the sample and which beats the sample
+// should be played on.
 type Track struct {
 	SampleID   int
 	SampleName string
 	Pattern    []byte
 }
 
-// String Given a Track, arrange its data into a string representing
-// the track information and beat pattern
+// String returns the track ID, name, and beat pattern.
 //
 // TODO: handle errors in missing data
 func (t Track) String() string {
 	prelude := fmt.Sprintf("(%d) %s\t", t.SampleID, t.SampleName)
 
-	bytesToSteps := func(beat []byte) string {
-		var buffer bytes.Buffer
-		for _, byte := range beat {
-			if byte == 0x00 {
-				buffer.WriteString("-")
+	bytesToSteps := func(steps []byte) string {
+		var buf bytes.Buffer
+		for _, b := range steps {
+			if b == 0x00 {
+				buf.WriteString("-")
 			} else {
-				buffer.WriteString("x")
+				buf.WriteString("x")
 			}
 		}
 
-		return buffer.String()
+		return buf.String()
 	}
 
 	track := fmt.Sprintf("|%s|%s|%s|%s|",
@@ -82,45 +77,47 @@ func (t Track) String() string {
 // DecodeFile decodes the drum machine file found at the provided path
 // and returns a pointer to a parsed pattern which is the entry point to the
 // rest of the data.
-func DecodeFile(path string) (p *Pattern, err error) {
-	p = &Pattern{}
+func DecodeFile(path string) (*Pattern, error) {
+	p := &Pattern{}
 
-	file, err := os.Open(path)
+	f, err := os.Open(path)
 	if err != nil {
-		return
+		return p, err
 	}
 
-	scanner := bufio.NewScanner(file)
-	scanner.Scan()
-	bytes := scanner.Bytes()
+	scn := bufio.NewScanner(f)
+	scn.Scan()
+	b := scn.Bytes()
 
-	err = scanner.Err()
+	err = scn.Err()
 	if err != nil {
-		return
+		return p, err
 	}
 
-	p.HWVersion = readHwVersion(bytes)
-	p.BPM = readBPM(bytes)
-	p.Tracks = readTracks(bytes[tracksOffset:])
+	p.HWVersion = readHwVersion(b)
+	p.BPM = readBPM(b)
+	p.Tracks = readTracks(b[tOffset:])
 
 	return p, nil
 }
 
-// readHwVersion extracts the HWVersion from the input data
+// readHwVersion extracts the HWVersion from the input data.
+//
 // TODO: isolate from the preceding pattern data
 // TODO: handle errors for string conversion
 func readHwVersion(data []byte) string {
-	hwVersion := []byte{}
-	for hwIdx := 14; hwIdx < 46; hwIdx++ {
-		if data[hwIdx] != 0x00 {
-			hwVersion = append(hwVersion, data[hwIdx])
+	var str []byte
+	for i := 14; i < 46; i++ {
+		if data[i] != 0x00 {
+			str = append(str, data[i])
 		}
 	}
 
-	return string(hwVersion)
+	return string(str)
 }
 
-// readBPM extracts the BPM bytes and converts them to a float32 integer
+// readBPM extracts the BPM bytes and converts them to a float32 integer.
+//
 // TODO: isolate from the preceding pattern data
 // TODO: handle errors for number conversion
 func readBPM(data []byte) float32 {
@@ -136,58 +133,60 @@ func readBPM(data []byte) float32 {
 // Since each track is variable length, it loops its way through the
 // data and converts each section to track it represents as it goes.
 //
-// Extracted tracks are added to a results array and the values returned
+// Extracted tracks are added to a results array and the values returned.
 //
 // TODO: error handling for incomplete tracks and malformed byte data
-func readTracks(tracksData []byte) (tracks []Track) {
-	tracks = []Track{}
-	lastReadPos := 0
+func readTracks(data []byte) []Track {
+	var tracks []Track
+	pos := 0
 
 	for {
-		trackData := tracksData[lastReadPos:]
-		if len(trackData) == 0 {
+		tData := data[pos:]
+		if len(tData) == 0 {
 			break
 		} else {
-			track, bytesRead := readTrack(tracksData[lastReadPos:])
-			tracks = append(tracks, track)
-			lastReadPos += bytesRead
+			t, read := readTrack(data[pos:])
+			tracks = append(tracks, t)
+			pos += read
 		}
 	}
 
-	return
+	return tracks
 }
 
 // readTrack takes in a byte array and seeks through to extract
-// one Track object. It returns the number of bytes used
-// to store the Track so that the following Track position can be
-// calculated if one exists
+// one Track object. Note, the track extracted may represent a leading
+// subset of the entire input.
+//
+// It returns the number of bytes used to store the Track so that
+// the following Track position can be calculated if one exists.
 //
 // TODO: return errors if track data is incomplete or malformed
-func readTrack(tracksData []byte) (track Track, bytesRead int) {
-	track = Track{}
-	bytesRead = 0
+func readTrack(data []byte) (Track, int) {
+	t := Track{}
+	read := 0
 
 	// Get Sample ID
-	track.SampleID = int(tracksData[bytesRead])
-	bytesRead++
+	t.SampleID = int(data[read])
+	read++
 
 	// Skip over padding
-	bytesRead += trackPaddingLength
+	read += tPadding
 
 	// Get Sample Name
-	nameLength := int(tracksData[bytesRead])
-	bytesRead++
-	nameBytes := []byte{}
+	nLen := int(data[read])
+	read++
+	var name []byte
 
-	for _, byte := range tracksData[bytesRead : bytesRead+nameLength] {
-		nameBytes = append(nameBytes, byte)
+	for _, b := range data[read : read+nLen] {
+		name = append(name, b)
 	}
-	track.SampleName = string(nameBytes)
-	bytesRead += nameLength
+	t.SampleName = string(name)
+	read += nLen
 
 	// Get Track Data
-	track.Pattern = tracksData[bytesRead : bytesRead+patternLength]
-	bytesRead += patternLength
+	t.Pattern = data[read : read+pLen]
+	read += pLen
 
-	return
+	return t, read
 }
