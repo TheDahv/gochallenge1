@@ -48,8 +48,6 @@ type Track struct {
 }
 
 // String returns the track ID, name, and beat pattern.
-//
-// TODO: handle errors in missing data
 func (t Track) String() string {
 	prelude := fmt.Sprintf("(%d) %s\t", t.SampleID, t.SampleName)
 
