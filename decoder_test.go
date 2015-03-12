@@ -63,7 +63,7 @@ Tempo: 999
 	}
 
 	for _, exp := range tData {
-		decoded, err := DecodeFile(path.Join("..", "data", "fixtures", exp.path))
+		decoded, err := DecodeFile(path.Join("fixtures", exp.path))
 		if err != nil {
 			t.Fatalf("something went wrong decoding %s - %v", exp.path, err)
 		}
@@ -84,7 +84,7 @@ func TestInvalidPathsReturnsError(t *testing.T) {
 }
 
 func loadBytesFromFile(fn string) ([]byte, error) {
-	f, err := os.Open(path.Join("..", "data", "fixtures", fn))
+	f, err := os.Open(path.Join("fixtures", fn))
 
 	if err != nil {
 		return nil, err
