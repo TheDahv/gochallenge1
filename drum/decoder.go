@@ -14,6 +14,7 @@ const (
 	tPadding int = 3  // Number of empty bytes after the track sample ID.
 	pLen     int = 16 // Number of bytes used to store the track pattern.
 	hwLen    int = 32 // Number of bytes used to store the hardware version
+	tLenPos  int = 13 // Position of byte representing tracks byte length
 )
 
 // Pattern is the high level representation of the drum pattern contained
@@ -107,7 +108,11 @@ func DecodeFile(path string) (*Pattern, error) {
 	}
 	p.BPM = bpm
 
-	tracks, err := readTracks(b[tOffset:])
+	// Derive track length by finding number of bytes to read stored in
+	// unsigned int at position `tLenPos`, and then remove bytes describing
+	// pattern to determine start and end of track bytes
+	tEnd := tOffset + int(uint16(b[tLenPos])) - 36
+	tracks, err := readTracks(b[tOffset:tEnd])
 	if err != nil {
 		return p, err
 	}
@@ -160,12 +165,12 @@ func readTracks(data []byte) ([]Track, error) {
 			break
 		} else {
 			t, read, err := readTrack(data[pos:])
+			pos += read
 			if err != nil {
-				// Track read error. Bail from loop early
+				// Track read error. Bail early
 				return tracks, err
 			}
 			tracks = append(tracks, t)
-			pos += read
 		}
 	}
 
