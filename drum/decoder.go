@@ -13,6 +13,7 @@ const (
 	tOffset  int = 50 // Bytes offset where track data starts.
 	tPadding int = 3  // Number of empty bytes after the track sample ID.
 	pLen     int = 16 // Number of bytes used to store the track pattern.
+	hwLen    int = 32 // Number of bytes used to store the hardware version
 )
 
 // Pattern is the high level representation of the drum pattern contained
@@ -94,17 +95,28 @@ func DecodeFile(path string) (*Pattern, error) {
 		return p, err
 	}
 
-	p.HWVersion = readHwVersion(b[14:46])
-	p.BPM = readBPM(b[46:50])
+	hw, err := readHwVersion(b[14:46])
+	if err != nil {
+		return p, err
+	}
+	p.HWVersion = hw
+
+	bpm, err := readBPM(b[46:50])
+	if err != nil {
+		return p, err
+	}
+	p.BPM = bpm
 	p.Tracks = readTracks(b[tOffset:])
 
 	return p, nil
 }
 
 // readHwVersion extracts the HWVersion from the input data.
-//
-// TODO: handle errors for string conversion
-func readHwVersion(data []byte) string {
+func readHwVersion(data []byte) (string, error) {
+	if len(data) != hwLen {
+		return "", fmt.Errorf("wrong amount of data to parse hardware version")
+	}
+
 	var str []byte
 	for _, b := range data {
 		if b != 0x00 {
@@ -112,15 +124,17 @@ func readHwVersion(data []byte) string {
 		}
 	}
 
-	return string(str)
+	return string(str), nil
 }
 
 // readBPM extracts the BPM bytes and converts them to a float32 integer.
-//
-// TODO: handle errors for number conversion
-func readBPM(data []byte) float32 {
+func readBPM(data []byte) (float32, error) {
+	if len(data) != 4 {
+		return -1, fmt.Errorf("wrong amount of data to parse bpm")
+	}
+
 	bits := binary.LittleEndian.Uint32(data)
-	return math.Float32frombits(bits)
+	return math.Float32frombits(bits), nil
 }
 
 // readTracks takes in the byte array representing the data

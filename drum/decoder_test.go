@@ -130,13 +130,37 @@ func TestLoadsHWVersion(t *testing.T) {
 			t.FailNow()
 		}
 
-		result := readHwVersion(b[14:46])
+		result, err := readHwVersion(b[14:46])
+		if err != nil {
+			t.Fatalf("Got error %v, expected no error\n", err)
+		}
 		if result != tCase.HWVersion {
 			t.Logf("decoded:\n%#v\n", result)
 			t.Logf("expected:\n%#v\n", tCase.HWVersion)
 			t.Fatalf("%s wasn't decoded as expected.\nGot:\n%s\nExpected:\n%s",
 				tCase.path, result, tCase.HWVersion)
 		}
+	}
+}
+
+func TestHWVersionErrorsOnEmptyBytes(t *testing.T) {
+	hw, err := readHwVersion([]byte{})
+	if hw != "" {
+		t.Errorf("Got '%s' with empty bytes, but was expecting an empty string\n", hw)
+	}
+
+	if err == nil {
+		t.Error("Got an empty error with empty bytes, but expected one")
+	}
+
+	var uninitializedData []byte
+	hw, err = readHwVersion(uninitializedData)
+	if hw != "" {
+		t.Errorf("Got '%s' with uninitialized bytes, but expected an empty string\n", hw)
+	}
+
+	if err == nil {
+		t.Error("Got an empty error with uninitialized bytes, but expected one")
 	}
 }
 
@@ -174,13 +198,38 @@ func TestLoadsBPM(t *testing.T) {
 			t.FailNow()
 		}
 
-		result := readBPM(b[46:50])
+		result, err := readBPM(b[46:50])
+		if err != nil {
+			t.Errorf("Got error %v, expected no error\n", err)
+		}
 		if result != tCase.BPM {
 			t.Logf("decoded:\n%#v\n", result)
 			t.Logf("expected:\n%#v\n", tCase.BPM)
 			t.Fatalf("%s wasn't decoded as expected.\nGot:\n%f\nExpected:\n%f",
 				tCase.path, result, tCase.BPM)
 		}
+	}
+}
+
+func TestBPMErrorsOnEmptyBytes(t *testing.T) {
+	bpm, err := readBPM([]byte{})
+	if bpm != -1 {
+		t.Errorf("Got %v, but expected -1\n", bpm)
+	}
+
+	if err == nil {
+		t.Error("Got an empty error with empty bytes, but expected one")
+	}
+}
+
+func TestBPMErrorsOnTooManyBytes(t *testing.T) {
+	bpm, err := readBPM([]byte{0x01, 0x02, 0x03, 0x04, 0x05})
+	if bpm != -1 {
+		t.Errorf("Got %v, but expected -1\n", bpm)
+	}
+
+	if err == nil {
+		t.Error("Got an empty error with too many bytes, but expected one")
 	}
 }
 
