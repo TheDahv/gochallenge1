@@ -106,7 +106,12 @@ func DecodeFile(path string) (*Pattern, error) {
 		return p, err
 	}
 	p.BPM = bpm
-	p.Tracks = readTracks(b[tOffset:])
+
+	tracks, err := readTracks(b[tOffset:])
+	if err != nil {
+		return p, err
+	}
+	p.Tracks = tracks
 
 	return p, nil
 }
@@ -145,9 +150,7 @@ func readBPM(data []byte) (float32, error) {
 // data and converts each section to track it represents as it goes.
 //
 // Extracted tracks are added to a results array and the values returned.
-//
-// TODO: error handling for incomplete tracks and malformed byte data
-func readTracks(data []byte) []Track {
+func readTracks(data []byte) ([]Track, error) {
 	var tracks []Track
 	pos := 0
 
@@ -156,13 +159,17 @@ func readTracks(data []byte) []Track {
 		if len(tData) == 0 {
 			break
 		} else {
-			t, read := readTrack(data[pos:])
+			t, read, err := readTrack(data[pos:])
+			if err != nil {
+				// Track read error. Bail from loop early
+				return tracks, err
+			}
 			tracks = append(tracks, t)
 			pos += read
 		}
 	}
 
-	return tracks
+	return tracks, nil
 }
 
 // readTrack takes in a byte array and seeks through to extract
@@ -171,11 +178,14 @@ func readTracks(data []byte) []Track {
 //
 // It returns the number of bytes used to store the Track so that
 // the following Track position can be calculated if one exists.
-//
-// TODO: return errors if track data is incomplete or malformed
-func readTrack(data []byte) (Track, int) {
+func readTrack(data []byte) (Track, int, error) {
 	t := Track{}
 	read := 0
+	dl := len(data)
+
+	if dl < 2+tPadding {
+		return t, read, fmt.Errorf("insufficient data to read track metadata")
+	}
 
 	// Get Sample ID
 	t.SampleID = int(data[read])
@@ -189,6 +199,9 @@ func readTrack(data []byte) (Track, int) {
 	read++
 	var name []byte
 
+	if dl < read+nLen {
+		return t, read, fmt.Errorf("insufficient data to read track name")
+	}
 	for _, b := range data[read : read+nLen] {
 		name = append(name, b)
 	}
@@ -196,8 +209,11 @@ func readTrack(data []byte) (Track, int) {
 	read += nLen
 
 	// Get Track Data
+	if dl < read+pLen {
+		return t, read, fmt.Errorf("insufficient data to read track pattern")
+	}
 	t.Pattern = data[read : read+pLen]
 	read += pLen
 
-	return t, read
+	return t, read, nil
 }

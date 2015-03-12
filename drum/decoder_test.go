@@ -237,9 +237,14 @@ func TestBPMErrorsOnTooManyBytes(t *testing.T) {
 // This is the Kick pattern from Sample 3
 // (40) kick	|x---|----|x---|----|
 var trackData = []byte{0x28, 0x00, 0x00, 0x00, 0x04, 0x6B, 0x69, 0x63, 0x6B, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}
+var newTrackData = []byte{0x01, 0x00, 0x00, 0x00, 0x04, 0x63, 0x6C, 0x61, 0x70, 0x00, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00}
 
 func TestLoadsSingleTrack(t *testing.T) {
-	tracks := readTracks(trackData)
+	tracks, err := readTracks(trackData)
+	if err != nil {
+		t.Errorf("Got '%v', expected no error\n", err)
+	}
+
 	if numTracks := len(tracks); numTracks != 1 {
 		t.Errorf("Expected to get 1 track back, got %d\n", numTracks)
 	}
@@ -255,12 +260,14 @@ func TestLoadsSingleTrack(t *testing.T) {
 }
 
 func TestMultipleTracks(t *testing.T) {
-	newTrackData := []byte{0x01, 0x00, 0x00, 0x00, 0x04, 0x63, 0x6C, 0x61, 0x70, 0x00, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00}
 	multipleTracks := []byte{}
 	multipleTracks = append(multipleTracks, trackData...)
 	multipleTracks = append(multipleTracks, newTrackData...)
 
-	tracks := readTracks(multipleTracks)
+	tracks, err := readTracks(multipleTracks)
+	if err != nil {
+		t.Errorf("Got '%v', expected no error\n", err)
+	}
 	if numTracks := len(tracks); numTracks != 2 {
 		t.Errorf("Got %d tracks back, expected 2\n", numTracks)
 	}
@@ -283,9 +290,29 @@ func TestMultipleTracks(t *testing.T) {
 	}
 }
 
+func TestReadTracksBailsEarlyOnError(t *testing.T) {
+	multipleTracks := []byte{}
+	multipleTracks = append(multipleTracks, trackData...)
+	multipleTracks = append(multipleTracks, (newTrackData[0:12])...)
+
+	tracks, err := readTracks(multipleTracks)
+
+	if l := len(tracks); l != 1 {
+		t.Errorf("Got %d tracks read before error, expected 1\n", l)
+	}
+
+	if err == nil {
+		t.Error("Got an empty error when one of the tracks was malformed, expected one")
+	}
+}
+
 func TestReadTrack(t *testing.T) {
 	trackData := []byte{0x28, 0x00, 0x00, 0x00, 0x04, 0x6B, 0x69, 0x63, 0x6B, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}
-	track, trackSize := readTrack(trackData)
+	track, trackSize, err := readTrack(trackData)
+	if err != nil {
+		t.Errorf("Got '%v', expected no error\n", err)
+	}
+
 	if trackSize != len(trackData) {
 		t.Errorf("Got track %d bytes read, expected %d\n", trackSize, len(trackData))
 	}
@@ -299,9 +326,43 @@ func TestReadTrack(t *testing.T) {
 	}
 }
 
-func TestString(t *testing.T) {
+func TestReadTrackErrorsOnTooFewBytesForMetadata(t *testing.T) {
+	_, read, err := readTrack([]byte{})
+
+	if read != 0 {
+		t.Errorf("Got a report of %d bytes read on error, expected 0", read)
+	}
+
+	if err == nil {
+		t.Error("Got an empty error with too few bytes, and expected one")
+	}
+}
+
+func TestReadTrackErrorsOnTooFewBytesForNameReading(t *testing.T) {
+	shortData := trackData[0:6]
+	_, _, err := readTrack(shortData)
+
+	if err == nil {
+		t.Error("Got an empty error with too few bytes, and expected one")
+	}
+}
+
+func TestReadTrackErrorsOnTooFewBytesForPattern(t *testing.T) {
+	shortData := trackData[0:12]
+	_, _, err := readTrack(shortData)
+
+	if err == nil {
+		t.Error("Got an empty error with too few bytes, and expected one")
+	}
+}
+
+func TestTrackString(t *testing.T) {
 	exp := "(40) kick	|x---|----|x---|----|"
-	track, _ := readTrack(trackData)
+	track, _, err := readTrack(trackData)
+
+	if err != nil {
+		t.Errorf("Got '%v', expected no error\n", err)
+	}
 
 	if result := track.String(); result != exp {
 		t.Errorf("Got tracks tring '%s', expected '%s'\n", result, exp)
